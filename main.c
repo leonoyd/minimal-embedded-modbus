@@ -42,7 +42,7 @@
 
 #if !__linux__
 #define cls(chp)  chprintf(chp, "\033[2J\033[1;1H")
-extern UARTDriver UARTD2;
+extern UARTDriver UARTD6;
 
 /*
  * UART driver configuration structure.
@@ -114,6 +114,7 @@ static THD_WORKING_AREA(waThread1, 128);
 static THD_FUNCTION(Thread1, arg) {
 
   (void)arg;
+modbus_driver_thread();
   chRegSetThreadName("blinker");
   while (true) {
     systime_t time;
@@ -273,7 +274,7 @@ void send_response(uint8_t* modbus_frame, uint16_t len)
 #if __linux__
 	int bytes_written = write(fd, modbus_frame, len);
 #else
-	uartStartSend(&UARTD2, len, modbus_frame);
+	uartStartSend(&UARTD6, len, modbus_frame);
 #endif
 }
 
@@ -305,7 +306,7 @@ bool process_request(uint8_t* frame, uint16_t len, uint16_t num_reg_requested,
 
 int8_t poll_uart_for_character()
 {
-    int8_t ch = 0;
+    int8_t ch = -1;
 #if __linux__
     int bytes_read = read(fd, &ch, 4);
     if (bytes_read > 0) {
@@ -316,7 +317,8 @@ int8_t poll_uart_for_character()
         return -1;
     }
 #else
-	uartStartReceive(&UARTD2, 1, (void*)&ch);
+	uartStartReceive(&UARTD6, 1, (void*)&ch);
+	return ch;
 #endif
 }
 
@@ -446,7 +448,7 @@ void modbus_driver_thread()
 	/*
    * Activates the serial driver 1, PA9 and PA10 are routed to USART2.
    */
-  uartStart(&UARTD2, &uart_cfg_1);
+  uartStart(&UARTD6, &uart_cfg_1);
 
 #endif
 
