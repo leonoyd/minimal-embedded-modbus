@@ -170,15 +170,15 @@ int main(void) {
   /* Normal main() thread activity, printing MEMS data on the SDU1.*/
   while (true) {
     l3gd20GyroscopeReadRaw(&L3GD20D1, gyroraw);
-    chprintf(chp, "L3GD20 Gyroscope raw data...\r\n");
+    //chprintf(chp, "L3GD20 Gyroscope raw data...\r\n");
     for(i = 0; i < L3GD20_GYRO_NUMBER_OF_AXES; i++) {
-      chprintf(chp, "%c-axis: %d\r\n", axisID[i], gyroraw[i]);
+      //chprintf(chp, "%c-axis: %d\r\n", axisID[i], gyroraw[i]);
     }
 
     l3gd20GyroscopeReadCooked(&L3GD20D1, gyrocooked);
-    chprintf(chp, "L3GD20 Gyroscope cooked data...\r\n");
+    //chprintf(chp, "L3GD20 Gyroscope cooked data...\r\n");
     for(i = 0; i < L3GD20_GYRO_NUMBER_OF_AXES; i++) {
-      chprintf(chp, "%c-axis: %.3f\r\n", axisID[i], gyrocooked[i]);
+      //chprintf(chp, "%c-axis: %.3f\r\n", axisID[i], gyrocooked[i]);
     }
 
     chThdSleepMilliseconds(100);
@@ -274,7 +274,7 @@ void send_response(uint8_t* modbus_frame, uint16_t len)
 #if __linux__
 	int bytes_written = write(fd, modbus_frame, len);
 #else
-	uartStartSend(&UARTD6, len, modbus_frame);
+	uartStartSend(chp, len, modbus_frame);
 #endif
 }
 
@@ -317,7 +317,7 @@ int8_t poll_uart_for_character()
         return -1;
     }
 #else
-	uartStartReceive(&UARTD6, 1, (void*)&ch);
+	uartStartReceive(chp, 1, (void*)&ch);
 	return ch;
 #endif
 }
@@ -349,6 +349,8 @@ void handle_rx_packet(uint8_t* mb_frame, uint16_t mb_frame_size)
 				}
 			}
 		}
+
+		chprintf(chp, "got a char: %d\r\n", ch);
 		if (timer_expired()) {
 			if (frame_ptr == mb_frame_size) {
                 packet_received = true;
