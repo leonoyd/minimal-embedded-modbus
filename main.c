@@ -43,6 +43,12 @@
 #if !__linux__
 #define cls(chp)  chprintf(chp, "\033[2J\033[1;1H")
 extern UARTDriver UARTD6;
+binary_semaphore_t bsem;
+static void rxend(UARTDriver *uartp) {
+    chBSemSignal(&bsem);
+
+  (void)uartp;
+}
 
 /*
  * UART driver configuration structure.
@@ -50,7 +56,7 @@ extern UARTDriver UARTD6;
 static UARTConfig uart_cfg_1 = {
   NULL,
   NULL,
-  NULL,
+  rxend,
   NULL,
   NULL,
   NULL,
@@ -148,6 +154,8 @@ int main(void) {
   sduObjectInit(&SDU1);
   sduStart(&SDU1, &serusbcfg);
 
+    chBSemObjectInit(&bsem, true);
+
   /*
    * Activates the USB driver and then the USB bus pull-up on D+.
    * Note, a delay is inserted in order to not have to disconnect the cable
@@ -160,6 +168,7 @@ int main(void) {
 
   /* Creates the blinker thread.*/
   chThdCreateStatic(waThread1, sizeof(waThread1), NORMALPRIO, Thread1, NULL);
+    chBSemSignal(&bsem);
 
   /* L3GD20 Object Initialization.*/
   l3gd20ObjectInit(&L3GD20D1);
@@ -171,14 +180,16 @@ int main(void) {
   while (true) {
     l3gd20GyroscopeReadRaw(&L3GD20D1, gyroraw);
     //chprintf(chp, "L3GD20 Gyroscope raw data...\r\n");
-    for(i = 0; i < L3GD20_GYRO_NUMBER_OF_AXES; i++) {
-      //chprintf(chp, "%c-axis: %d\r\n", axisID[i], gyroraw[i]);
+//chnWrite(SDU1, "hello leo", 10);
+    
+for(i = 0; i < L3GD20_GYRO_NUMBER_OF_AXES; i++) {
+      chprintf(chp, "%c-axis: %d\r\n", axisID[i], gyroraw[i]);
     }
 
     l3gd20GyroscopeReadCooked(&L3GD20D1, gyrocooked);
-    //chprintf(chp, "L3GD20 Gyroscope cooked data...\r\n");
+    chprintf(chp, "L3GD20 Gyroscope cooked data...\r\n");
     for(i = 0; i < L3GD20_GYRO_NUMBER_OF_AXES; i++) {
-      //chprintf(chp, "%c-axis: %.3f\r\n", axisID[i], gyrocooked[i]);
+      chprintf(chp, "%c-axis: %.3f\r\n", axisID[i], gyrocooked[i]);
     }
 
     chThdSleepMilliseconds(100);
@@ -304,7 +315,7 @@ bool process_request(uint8_t* frame, uint16_t len, uint16_t num_reg_requested,
     return true;
 }
 
-int8_t poll_uart_for_character()
+int8_t poll_uart_for_character(bool wait_forever)
 {
     int8_t ch = -1;
 #if __linux__
@@ -317,7 +328,9 @@ int8_t poll_uart_for_character()
         return -1;
     }
 #else
-	uartStartReceive(chp, 1, (void*)&ch);
+if(wait_forever)
+	    chBSemWait(&bsem);
+//chnRead(ch, &ch, 1);//	uartStartReceive(chp, 1, (void*)&ch);
 	return ch;
 #endif
 }
@@ -326,7 +339,7 @@ void wait_for_start_signal()
 {
 	restart_timer();
      while (!timer_expired()) {
-        int8_t ch = poll_uart_for_character();
+        int8_t ch = poll_uart_for_character(false);
         if (ch > -1) {
             restart_timer();
         }
@@ -342,7 +355,7 @@ void handle_rx_packet(uint8_t* mb_frame, uint16_t mb_frame_size)
     //wait_for_start_signal();
 	while (!packet_received) {
 		while (ch < 0) {
-			ch = poll_uart_for_character();
+			ch = poll_uart_for_character(true);
 			if (frame_ptr == mb_frame_size) {
 				if (timer_expired()) {
 					break;
