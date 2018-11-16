@@ -44,6 +44,7 @@
 #define cls(chp)  chprintf(chp, "\033[2J\033[1;1H")
 extern UARTDriver UARTD6;
 binary_semaphore_t bsem;
+static mutex_t mtx1;
 static void rxend(UARTDriver *uartp) {
     chBSemSignal(&bsem);
 
@@ -150,7 +151,7 @@ int main(void) {
   halInit();
   chSysInit();
 
-  /* Initializes a serial-over-USB CDC driver.*/
+chMtxObjectInit(&mtx1); /* Initializes a serial-over-USB CDC driver.*/
   sduObjectInit(&SDU1);
   sduStart(&SDU1, &serusbcfg);
 
@@ -175,24 +176,28 @@ int main(void) {
 
   /* Activates the L3GD20 driver.*/
   l3gd20Start(&L3GD20D1, &l3gd20cfg);
-
+uint16_t* mb reg = (uint16_t*)modbus_registers;
   /* Normal main() thread activity, printing MEMS data on the SDU1.*/
   while (true) {
     l3gd20GyroscopeReadRaw(&L3GD20D1, gyroraw);
-    //chprintf(chp, "L3GD20 Gyroscope raw data...\r\n");
-//chnWrite(SDU1, "hello leo", 10);
-    
+  chMtxLock(&mtx1);
+  //chprintf(chp, "L3GD20 Gyroscope raw data...\r\n");
+chnWrite(&SDU1, "hello leo", 10);
+
 for(i = 0; i < L3GD20_GYRO_NUMBER_OF_AXES; i++) {
       chprintf(chp, "%c-axis: %d\r\n", axisID[i], gyroraw[i]);
+      mb_reg[i] = gyroraw[i];
     }
 
     l3gd20GyroscopeReadCooked(&L3GD20D1, gyrocooked);
     chprintf(chp, "L3GD20 Gyroscope cooked data...\r\n");
     for(i = 0; i < L3GD20_GYRO_NUMBER_OF_AXES; i++) {
       chprintf(chp, "%c-axis: %.3f\r\n", axisID[i], gyrocooked[i]);
+      mb_reg[i + 3] = gyroraw[i];
     }
 
-    chThdSleepMilliseconds(100);
+  chMtxUnlock(&mtx1);
+  chThdSleepMilliseconds(100);
     cls(chp);
   }
   l3gd20Stop(&L3GD20D1);
@@ -309,9 +314,9 @@ bool process_request(uint8_t* frame, uint16_t len, uint16_t num_reg_requested,
 		//construct and return error
         return false;
 	}
-
+    chMtxLock(&mtx1);
     memcpy(&frame[MB_TX_FRAME_DATA], &modbus_registers[start_addr], num_reg_requested);
-
+    chMtxUnlock(&mtx1);
     return true;
 }
 
