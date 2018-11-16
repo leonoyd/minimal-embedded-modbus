@@ -474,7 +474,7 @@ void modbus_driver_thread()
             && ((modbus_rx_frame[MB_FRAME_FUNCTION] == 0x03)
            || (modbus_rx_frame[MB_FRAME_FUNCTION] == 0x00))) {
 
-            if (is_frame_valid(modbus_rx_frame, MODBUS_RX_FRAME_SIZE)) {
+            if (is_frame_valid(modbus_rx_frame, MODBUS_RX_FRAME_SIZE - 2)) {
                 uint16_t num_reg_requested = (modbus_rx_frame[MB_FRAME_NO_REG_HI] & 0x00FF)<<8
                             | modbus_rx_frame[MB_FRAME_NO_REG_LOW];
 
@@ -483,7 +483,7 @@ void modbus_driver_thread()
                             | modbus_rx_frame[MB_FRAME_STARTING_ADDR_LOW];
 
                 if (process_request(modbus_tx_frame, MODBUS_TX_FRAME_SIZE,
-                                    num_reg_requested, start_addr)) {
+                                    num_reg_requested * 2, start_addr)) {
                     uint16_t tx_packet_len = construct_response(modbus_tx_frame, modbus_rx_frame, num_reg_requested * 2);
                     send_response(modbus_tx_frame, tx_packet_len);
                 }
