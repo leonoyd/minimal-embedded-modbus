@@ -108,6 +108,8 @@ static L3GD20Config l3gd20cfg = {
 #endif
 };
 
+#define MAX_NUM_MODBUS_REGISTERS 12
+uint16_t modbus_registers[MAX_NUM_MODBUS_REGISTERS];
 /*===========================================================================*/
 /* Generic code.                                                                */
 /*===========================================================================*/
@@ -176,7 +178,7 @@ chMtxObjectInit(&mtx1); /* Initializes a serial-over-USB CDC driver.*/
 
   /* Activates the L3GD20 driver.*/
   l3gd20Start(&L3GD20D1, &l3gd20cfg);
-uint16_t* mb reg = (uint16_t*)modbus_registers;
+uint16_t* mb_reg = (uint16_t*)modbus_registers;
   /* Normal main() thread activity, printing MEMS data on the SDU1.*/
   while (true) {
     l3gd20GyroscopeReadRaw(&L3GD20D1, gyroraw);
@@ -204,8 +206,6 @@ for(i = 0; i < L3GD20_GYRO_NUMBER_OF_AXES; i++) {
 #endif
 }
 #endif
-#define MAX_NUM_MODBUS_REGISTERS 12
-uint16_t modbus_registers[MAX_NUM_MODBUS_REGISTERS];
 typedef enum {
 	MB_FRAME_SLAVE_ADDR,
 	MB_FRAME_FUNCTION,
